@@ -10,6 +10,15 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
+// TODO: Separate journal from storage
+// - Should be able to CRUD a journal without knowing the backend storage
+// - Create interface
+//   - read/write an entire journal
+//     - reading needs to initialize each entry, but not necessarily each tree
+//     - only write entries that are dirty
+//   - read/write single entry
+//   - read single entry subtree
+
 // Jrnl represents a journal with entries.
 type Jrnl struct {
 	Entries []*Entry
@@ -81,5 +90,6 @@ func (e Entry) Save() (err error) {
 
 // ApplyTemplate prepopulates an entry with pre defined content.
 func (e Entry) ApplyTemplate() {
-	e.t.Set("time", time.Now())
+	// TODO: Allow defining template(s) in config file
+	e.Set("time", time.Now())
 }
