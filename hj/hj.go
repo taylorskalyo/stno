@@ -18,7 +18,7 @@ type Jrnl struct {
 
 // Entry represents a journal entry.
 type Entry struct {
-	t *toml.Tree
+	toml.Tree
 	f *os.File
 }
 
@@ -28,7 +28,8 @@ func (j Jrnl) NewEntry() (e Entry, err error) {
 	if err != nil {
 		return
 	}
-	e.t, err = toml.TreeFromMap(make(map[string]interface{}))
+	tree, err := toml.TreeFromMap(make(map[string]interface{}))
+	e = Entry{Tree: *tree}
 	if err != nil {
 		return
 	}
@@ -56,8 +57,8 @@ func (j *Jrnl) Open() (err error) {
 			break
 		}
 		e := Entry{
-			f: file,
-			t: tree,
+			f:    file,
+			Tree: *tree,
 		}
 		j.Entries = append(j.Entries, &e)
 	}
@@ -68,13 +69,13 @@ func (j *Jrnl) Open() (err error) {
 func (j Jrnl) List() {
 	for _, e := range j.Entries {
 		fmt.Println(e.f.Name())
-		fmt.Println(e.t.String())
+		fmt.Println(e.String())
 	}
 }
 
 // Save saves the contents of an Entry to disk.
 func (e Entry) Save() (err error) {
-	_, err = e.f.WriteString(e.t.String())
+	_, err = e.f.WriteString(e.String())
 	return
 }
 
