@@ -37,12 +37,12 @@ func (j Jrnl) NewEntry() (e Entry, err error) {
 	return
 }
 
-// Open opens a journal for reading or writing.
-func (j *Jrnl) Open() (err error) {
-	if err = os.MkdirAll(j.Path, os.ModePerm); err != nil {
+// Load opens a journal for reading.
+func (j *Jrnl) Load() (err error) {
+	listing, err := ioutil.ReadDir(j.Path)
+	if err != nil {
 		return
 	}
-	listing, _ := ioutil.ReadDir(j.Path)
 	for _, fi := range listing {
 		if fi.IsDir() {
 			continue

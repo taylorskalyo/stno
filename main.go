@@ -43,7 +43,7 @@ func main() {
 			Name:  "query",
 			Usage: "filter and display journal entries",
 			Action: func(c *cli.Context) error {
-				if err := jrnl.Open(); err != nil {
+				if err := jrnl.Load(); err != nil {
 					return err
 				}
 				jrnl.List()
