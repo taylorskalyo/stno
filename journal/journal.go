@@ -1,4 +1,4 @@
-package hj
+package journal
 
 import (
 	"fmt"
@@ -19,8 +19,8 @@ import (
 //   - read/write single entry
 //   - read single entry subtree
 
-// Jrnl represents a journal with entries.
-type Jrnl struct {
+// Journal represents a journal with entries.
+type Journal struct {
 	Entries []*Entry
 	Path    string
 }
@@ -32,7 +32,7 @@ type Entry struct {
 }
 
 // NewEntry initializes a Entry object.
-func (j Jrnl) NewEntry() (e Entry, err error) {
+func (j Journal) NewEntry() (e Entry, err error) {
 	e.f, err = ioutil.TempFile(j.Path, "")
 	if err != nil {
 		return
@@ -47,7 +47,7 @@ func (j Jrnl) NewEntry() (e Entry, err error) {
 }
 
 // Load opens a journal for reading.
-func (j *Jrnl) Load() (err error) {
+func (j *Journal) Load() (err error) {
 	listing, err := ioutil.ReadDir(j.Path)
 	if err != nil {
 		return
@@ -75,7 +75,7 @@ func (j *Jrnl) Load() (err error) {
 }
 
 // List journal entries.
-func (j Jrnl) List() {
+func (j Journal) List() {
 	for _, e := range j.Entries {
 		fmt.Println(e.f.Name())
 		fmt.Println(e.String())

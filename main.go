@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/taylorskalyo/hj/hj"
+	"github.com/taylorskalyo/hj/journal"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -21,19 +21,19 @@ func main() {
 		},
 	}
 
-	jrnl := hj.Jrnl{Path: "/tmp/jrnl"}
+	jrnl := journal.Journal{Path: "/tmp/jrnl"}
 
 	app.Commands = []cli.Command{
 		{
 			Name:  "add",
 			Usage: "add a journal entry",
 			Action: func(c *cli.Context) error {
-				e, err := jrnl.NewEntry()
+				entry, err := jrnl.NewEntry()
 				if err != nil {
 					return err
 				}
-				e.ApplyTemplate()
-				if err = e.Save(); err != nil {
+				entry.ApplyTemplate()
+				if err = entry.Save(); err != nil {
 					return err
 				}
 				return nil
