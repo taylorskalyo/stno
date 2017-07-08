@@ -10,15 +10,6 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
-// TODO: Separate journal from storage
-// - Should be able to CRUD a journal without knowing the backend storage
-// - Create interface
-//   - read/write an entire journal
-//     - reading needs to initialize each entry, but not necessarily each tree
-//     - only write entries that are dirty
-//   - read/write single entry
-//   - read single entry subtree
-
 // Journal represents a journal with entries.
 type Journal struct {
 	Entries []*Entry
@@ -46,7 +37,7 @@ func (j Journal) NewEntry() (e Entry, err error) {
 	return
 }
 
-// Load opens a journal for reading.
+// Load a journal for reading.
 func (j *Journal) Load() (err error) {
 	listing, err := ioutil.ReadDir(j.Path)
 	if err != nil {
@@ -82,7 +73,7 @@ func (j Journal) List() {
 	}
 }
 
-// Save saves the contents of an Entry to disk.
+// Save the contents of an Entry to disk.
 func (e Entry) Save() (err error) {
 	_, err = e.f.WriteString(e.String())
 	return
