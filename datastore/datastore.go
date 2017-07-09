@@ -11,9 +11,9 @@ import (
 // DataStore represents a persistent data store for Journals.
 type DataStore interface {
 	List() ([]string, error)
-	NewUniqueWriter(string) (string, io.Writer, error)
-	NewWriter(string) (io.Writer, error)
-	NewReader(string) (io.Reader, error)
+	NewUniqueWriteCloser(string) (string, io.WriteCloser, error)
+	NewWriteCloser(string) (io.WriteCloser, error)
+	NewReadCloser(string) (io.ReadCloser, error)
 }
 
 // FileStore implements DataStore using files and directories.
@@ -50,9 +50,9 @@ func (fs FileStore) List() ([]string, error) {
 	return entries, err
 }
 
-// NewUniqueWriter generates a new uuid with an optional prefix and uses it to
-// create an io.Writer.
-func (fs FileStore) NewUniqueWriter(prefix string) (string, io.Writer, error) {
+// NewUniqueWriteCloser generates a new uuid with an optional prefix and uses it to
+// create an io.WriteCloser.
+func (fs FileStore) NewUniqueWriteCloser(prefix string) (string, io.WriteCloser, error) {
 	f, err := ioutil.TempFile(fs.Path, prefix)
 	if err != nil {
 		return "", f, err
@@ -61,13 +61,13 @@ func (fs FileStore) NewUniqueWriter(prefix string) (string, io.Writer, error) {
 	return path.Join(fs.Path, f.Name()), f, nil
 }
 
-// NewWriter opens or creates the file specified by `path` and returns an
-// io.Writer.
-func (fs FileStore) NewWriter(path string) (io.Writer, error) {
+// NewWriteCloser opens or creates the file specified by `path` and returns an
+// io.WriteCloser.
+func (fs FileStore) NewWriteCloser(path string) (io.WriteCloser, error) {
 	return os.Create(path)
 }
 
-// NewReader opens the file specified by `path` and returns an io.Reader.
-func (fs FileStore) NewReader(path string) (io.Reader, error) {
+// NewReadCloser opens the file specified by `path` and returns an io.ReadCloser.
+func (fs FileStore) NewReadCloser(path string) (io.ReadCloser, error) {
 	return os.Open(path)
 }
