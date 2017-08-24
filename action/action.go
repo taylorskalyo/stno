@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -28,7 +27,7 @@ type templateData struct {
 // Add a new journal entry.
 func Add(c *cli.Context) error {
 	// Create temporary file
-	tmpfile, err := ioutil.TempFile("", "hj")
+	tmpfile, err := datastore.TempFile("", "hj", ".toml")
 	if err != nil {
 		return err
 	}
