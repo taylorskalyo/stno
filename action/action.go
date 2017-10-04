@@ -44,6 +44,11 @@ func Add(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fi, err := tmpfile.Stat()
+	if err != nil {
+		return err
+	}
+	oldModTime := fi.ModTime()
 	if err := tmpfile.Close(); err != nil {
 		return err
 	}
@@ -51,12 +56,23 @@ func Add(c *cli.Context) error {
 	// Open file in editor
 	openEditor(tmpfile.Name())
 
-	// Lint file
 	rc, err := os.Open(tmpfile.Name())
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
+
+	// Return if there were no changes
+	fi, err = rc.Stat()
+	if err != nil {
+		return err
+	}
+	if oldModTime == fi.ModTime() {
+		fmt.Println("Aborting due to empty entry.")
+		return nil
+	}
+
+	// Lint file
 	tree, err := toml.LoadReader(rc)
 	if err != nil {
 		return err
