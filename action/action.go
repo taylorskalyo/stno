@@ -24,7 +24,7 @@ type templateData struct {
 	DateTime string
 }
 
-// Add a new journal entry.
+// Add a new notebook entry.
 func Add(c *cli.Context) error {
 	// Create temporary file
 	tmpfile, err := datastore.TempFile("", "stno", ".toml")
@@ -62,7 +62,7 @@ func Add(c *cli.Context) error {
 	rc.Seek(0, 0)
 
 	// Copy contents from temp file to entry file
-	ds, err := datastore.CreateFileStore("/tmp/jrnl")
+	ds, err := datastore.CreateFileStore("/tmp/stno")
 	if err != nil {
 		return err
 	}
@@ -91,9 +91,9 @@ func Add(c *cli.Context) error {
 	return nil
 }
 
-// Query a journal for a list of entries.
+// Query a notebook for a list of entries.
 func Query(c *cli.Context) error {
-	ds, err := datastore.CreateFileStore("/tmp/jrnl")
+	ds, err := datastore.CreateFileStore("/tmp/stno")
 	if err != nil {
 		return err
 	}

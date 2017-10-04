@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-// DataStore represents a persistent data store for Journals.
+// DataStore represents a persistent data store for notebooks.
 type DataStore interface {
 	List() ([]string, error)
 	NewUniqueWriteCloser(string) (string, io.WriteCloser, error)

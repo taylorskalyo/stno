@@ -13,8 +13,8 @@ func main() {
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "journal, j",
-			Usage: "load the journal titled `JOURNAL`",
+			Name:  "notebook, n",
+			Usage: "use the notebook named `NAME`",
 		},
 		cli.StringFlag{
 			Name:  "config, c",
@@ -25,12 +25,12 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:   "add",
-			Usage:  "Adds a journal entry",
+			Usage:  "Adds a notebook entry",
 			Action: action.Add,
 		},
 		{
 			Name:   "query",
-			Usage:  "Queries journal entries",
+			Usage:  "Queries notebook entries",
 			Action: action.Query,
 		},
 	}
