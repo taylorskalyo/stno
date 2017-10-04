@@ -12,7 +12,7 @@ import (
 
 	shellquote "github.com/kballard/go-shellquote"
 	toml "github.com/pelletier/go-toml"
-	"github.com/taylorskalyo/hj/datastore"
+	"github.com/taylorskalyo/stno/datastore"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -27,7 +27,7 @@ type templateData struct {
 // Add a new journal entry.
 func Add(c *cli.Context) error {
 	// Create temporary file
-	tmpfile, err := datastore.TempFile("", "hj", ".toml")
+	tmpfile, err := datastore.TempFile("", "stno", ".toml")
 	if err != nil {
 		return err
 	}

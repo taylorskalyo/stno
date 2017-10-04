@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/taylorskalyo/hj/action"
+	"github.com/taylorskalyo/stno/action"
 
 	"gopkg.in/urfave/cli.v1"
 )
