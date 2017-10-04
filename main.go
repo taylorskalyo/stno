@@ -15,6 +15,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "notebook, n",
 			Usage: "use the notebook named `NAME`",
+			Value: "default",
 		},
 		cli.StringFlag{
 			Name:  "config, c",

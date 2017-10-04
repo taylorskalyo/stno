@@ -7,10 +7,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"time"
 
 	shellquote "github.com/kballard/go-shellquote"
+	homedir "github.com/mitchellh/go-homedir"
 	toml "github.com/pelletier/go-toml"
 	"github.com/taylorskalyo/stno/datastore"
 	cli "gopkg.in/urfave/cli.v1"
@@ -62,7 +64,11 @@ func Add(c *cli.Context) error {
 	rc.Seek(0, 0)
 
 	// Copy contents from temp file to entry file
-	ds, err := datastore.CreateFileStore("/tmp/stno")
+	dir, err := stnoDir(c.GlobalString("notebook"))
+	if err != nil {
+		return err
+	}
+	ds, err := datastore.CreateFileStore(dir)
 	if err != nil {
 		return err
 	}
@@ -93,7 +99,11 @@ func Add(c *cli.Context) error {
 
 // Query a notebook for a list of entries.
 func Query(c *cli.Context) error {
-	ds, err := datastore.CreateFileStore("/tmp/stno")
+	dir, err := stnoDir(c.GlobalString("notebook"))
+	if err != nil {
+		return err
+	}
+	ds, err := datastore.CreateFileStore(dir)
 	if err != nil {
 		return err
 	}
@@ -147,4 +157,8 @@ func newTemplateData() templateData {
 	return templateData{
 		DateTime: time.Now().Format(time.RFC3339),
 	}
+}
+
+func stnoDir(name string) (string, error) {
+	return homedir.Expand(path.Join("~/.stno", name))
 }
