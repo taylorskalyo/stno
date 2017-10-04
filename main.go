@@ -14,23 +14,23 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "journal, j",
-			Usage: "Load the journal titled `JOURNAL`",
+			Usage: "load the journal titled `JOURNAL`",
 		},
 		cli.StringFlag{
 			Name:  "config, c",
-			Usage: "Load configuration from `FILE`",
+			Usage: "load configuration from `FILE`",
 		},
 	}
 
 	app.Commands = []cli.Command{
 		{
 			Name:   "add",
-			Usage:  "add a journal entry",
+			Usage:  "Adds a journal entry",
 			Action: action.Add,
 		},
 		{
 			Name:   "query",
-			Usage:  "filter and display journal entries",
+			Usage:  "Queries journal entries",
 			Action: action.Query,
 		},
 	}
