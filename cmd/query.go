@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"os"
 
+	toml "github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/taylorskalyo/stno/datastore"
 )
@@ -31,19 +31,22 @@ var queryCmd = &cobra.Command{
 			fmt.Printf("Failed to list notebook entries: %s.", err.Error())
 			os.Exit(1)
 		}
-		for i, uuid := range uuids {
-			if i != 0 {
-				fmt.Println()
-			}
-			fmt.Println(uuid)
+		tree, _ := toml.Load("")
+		for _, uuid := range uuids {
 			rc, err := ds.NewReadCloser(uuid)
 			if err != nil {
 				fmt.Printf("Failed to read notebook entry %s: %s.", uuid, err.Error())
 				os.Exit(1)
 			}
-			io.Copy(os.Stdout, rc)
-			rc.Close()
+			defer rc.Close()
+			t, err := toml.LoadReader(rc)
+			if err != nil {
+				fmt.Printf("Invalid toml in entry %s: %s.", uuid, err.Error())
+				continue
+			}
+			tree.Set(uuid, "", false, t)
 		}
+		fmt.Println(tree.String())
 	},
 }
 
