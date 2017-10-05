@@ -31,62 +31,63 @@ func Add(c *cli.Context) error {
 	// Create temporary file
 	tmpfile, err := datastore.TempFile("", "stno", ".toml")
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to create temporary file: %s.", err.Error()), 1)
 	}
 	defer os.Remove(tmpfile.Name())
 
 	// Write template to file
 	t, err := template.New("default").Parse(defaultTemplate)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to generate notebook template: %s.", err.Error()), 1)
 	}
 	err = t.Execute(tmpfile, newTemplateData())
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to apply notebook template: %s.", err.Error()), 1)
 	}
 	fi, err := tmpfile.Stat()
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to stat temporary file %s: %s.", tmpfile.Name(), err.Error()), 1)
 	}
 	oldModTime := fi.ModTime()
 	if err := tmpfile.Close(); err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to close temporary file %s: %s.", tmpfile.Name(), err.Error()), 1)
 	}
 
 	// Open file in editor
-	openEditor(tmpfile.Name())
+	if err = openEditor(tmpfile.Name()); err != nil {
+		return cli.NewExitError(fmt.Sprintf("Failed to open editor: %s.", err.Error()), 1)
+	}
 
 	rc, err := os.Open(tmpfile.Name())
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to open temporary file %s: %s.", tmpfile.Name(), err.Error()), 1)
 	}
 	defer rc.Close()
 
 	// Return if there were no changes
 	fi, err = rc.Stat()
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to stat temporary file %s: %s.", tmpfile.Name(), err.Error()), 1)
 	}
 	if oldModTime == fi.ModTime() {
-		fmt.Println("Aborting due to empty entry.")
-		return nil
+		return cli.NewExitError("Aborting due to empty entry.", 1)
 	}
 
 	// Lint file
 	tree, err := toml.LoadReader(rc)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Invalid toml: %s.", err.Error()), 1)
 	}
 	rc.Seek(0, 0)
 
 	// Copy contents from temp file to entry file
 	dir, err := stnoDir(c.GlobalString("notebook"))
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to determine notebook directory: %s.", err.Error()), 1)
 	}
 	ds, err := datastore.CreateFileStore(dir)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to create notebook data store: %s.", err.Error()), 1)
 	}
 	var buf bytes.Buffer
 	datetime, ok := tree.Get("datetime").(time.Time)
@@ -102,12 +103,12 @@ func Add(c *cli.Context) error {
 	}
 	_, wc, err := ds.NewUniqueWriteCloser(buf.String())
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to create notebook entry: %s.", err.Error()), 1)
 	}
 	defer wc.Close()
 	_, err = io.Copy(wc, rc)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to save notebook entry: %s.", err.Error()), 1)
 	}
 
 	return nil
@@ -117,16 +118,16 @@ func Add(c *cli.Context) error {
 func Query(c *cli.Context) error {
 	dir, err := stnoDir(c.GlobalString("notebook"))
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to determine notebook directory: %s.", err.Error()), 1)
 	}
 	ds, err := datastore.CreateFileStore(dir)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to create notebook data store: %s.", err.Error()), 1)
 	}
 
 	uuids, err := ds.List()
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("Failed to list notebook entries: %s.", err.Error()), 1)
 	}
 	for i, uuid := range uuids {
 		if i != 0 {
@@ -135,7 +136,7 @@ func Query(c *cli.Context) error {
 		fmt.Println(uuid)
 		rc, err := ds.NewReadCloser(uuid)
 		if err != nil {
-			return err
+			return cli.NewExitError(fmt.Sprintf("Failed to read notebook entry %s: %s.", uuid, err.Error()), 1)
 		}
 		io.Copy(os.Stdout, rc)
 		rc.Close()
