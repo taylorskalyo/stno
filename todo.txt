@@ -1,0 +1,19 @@
+- Ephemeral datastore for testing
+- Parse config and make accessible to actions
+- Pipeline
+  - Filter: channel of uuids
+  - Select: channel of subtrees
+  - Format: write a string
+- Select subtrees
+- Filter entries
+- Meaningful uuid
+  - Custom uuid?
+  - Force date/title key?
+- Edit (multiple?) entries
+  - Detect if file changed
+- Config options
+  - Template
+  - Custom uuid?
+  - Default journal location
+- Color output (filenames, syntax highlighting?)
+- Only show basename of entry uuid when querying

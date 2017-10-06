@@ -1,6 +1,8 @@
 package notebook
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 
 	toml "github.com/pelletier/go-toml"
@@ -21,7 +23,7 @@ func TestDefaultEntryID(t *testing.T) {
 	}
 }
 
-func TestCustomValidEntryID(t *testing.T) {
+func TestCustomValidEntryIDTemplate(t *testing.T) {
 	n := notebook.Notebook{}
 	customTemplate := `{{.foo}}{{.bar}}`
 	if err := n.SetEntryIDTemplate(customTemplate); err != nil {
@@ -39,7 +41,7 @@ func TestCustomValidEntryID(t *testing.T) {
 	}
 }
 
-func TestCustomMissingEntryID(t *testing.T) {
+func TestCustomMissingEntryIDTemplate(t *testing.T) {
 	n := notebook.Notebook{}
 	customTemplate := `{{.foo}}{{.bar}}`
 	if err := n.SetEntryIDTemplate(customTemplate); err != nil {
@@ -57,10 +59,80 @@ func TestCustomMissingEntryID(t *testing.T) {
 	}
 }
 
-func TestCustomInvalidEntryID(t *testing.T) {
+func TestCustomInvalidEntryIDTemplate(t *testing.T) {
 	n := notebook.Notebook{}
 	customTemplate := `{{foo}}`
 	if err := n.SetEntryIDTemplate(customTemplate); err == nil {
+		t.Fatal("Expected error, but none was thrown.")
+	}
+}
+
+func TestDefaultEntry(t *testing.T) {
+	n := notebook.Notebook{}
+	entry, err := n.NewEntry()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s.", err)
+	}
+	expected := []string{"datetime", "notes", "title"}
+	actual := entry.Keys()
+	sort.Strings(actual)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Expected \"%v\", but got \"%v\".", expected, actual)
+	}
+}
+
+func TestCustomValidEntryTemplate(t *testing.T) {
+	n := notebook.Notebook{}
+	customTemplate := `foo = "fighter"
+bar = "none"`
+	if err := n.SetEntryTemplate(customTemplate); err != nil {
+		t.Fatalf("Unexpected error: %s.", err)
+	}
+	entry, err := n.NewEntry()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s.", err)
+	}
+	expected := map[string]string{"foo": "fighter", "bar": "none"}
+	actual := entry.ToMap()
+	if expected["foo"] != actual["foo"] || expected["bar"] != actual["bar"] {
+		t.Fatalf("Expected \"%v\", but got \"%v\".", expected, actual)
+	}
+}
+
+func TestCustomMissingEntryTemplate(t *testing.T) {
+	n := notebook.Notebook{}
+	customTemplate := `foo = "{{.foo}}"
+bar = "{{.bar}}"`
+	if err := n.SetEntryTemplate(customTemplate); err != nil {
+		t.Fatalf("Unexpected error: %s.", err)
+	}
+	entry, err := n.NewEntry()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s.", err)
+	}
+	expected := map[string]string{"foo": "<no value>", "bar": "<no value>"}
+	actual := entry.ToMap()
+	if expected["foo"] != actual["foo"] || expected["bar"] != actual["bar"] {
+		t.Fatalf("Expected \"%v\", but got \"%v\".", expected, actual)
+	}
+}
+
+func TestCustomInvalidEntryTemplate(t *testing.T) {
+	n := notebook.Notebook{}
+	customTemplate := `{{foo}}`
+	if err := n.SetEntryTemplate(customTemplate); err == nil {
+		t.Fatal("Expected error, but none was thrown.")
+	}
+}
+
+func TestCustomInvalidTOMLEntryTemplate(t *testing.T) {
+	n := notebook.Notebook{}
+	customTemplate := `!invalid TOML`
+	if err := n.SetEntryTemplate(customTemplate); err != nil {
+		t.Fatalf("Unexpected error: %s.", err)
+	}
+	_, err := n.NewEntry()
+	if err == nil {
 		t.Fatal("Expected error, but none was thrown.")
 	}
 }
