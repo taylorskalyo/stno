@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"text/template"
 
-	toml "github.com/pelletier/go-toml"
 	"github.com/taylorskalyo/stno/datastore"
 )
 
@@ -39,11 +38,9 @@ func (n Notebook) NewEntry() (Entry, error) {
 	if err := t.Execute(buf, dataFn()); err != nil {
 		return entry, err
 	}
-	tree, err := toml.LoadReader(buf)
-	if err != nil {
+	entry.notebook = &n
+	if err := entry.LoadReader(buf); err != nil {
 		return entry, err
 	}
-	entry.notebook = &n
-	entry.Tree = tree
 	return entry, nil
 }

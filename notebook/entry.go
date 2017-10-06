@@ -2,6 +2,7 @@ package notebook
 
 import (
 	"bytes"
+	"io"
 	"regexp"
 	"text/template"
 
@@ -34,4 +35,14 @@ func (e Entry) ID() (string, error) {
 	// Replace any non-alphanumeric characters
 	r := regexp.MustCompile("-*[^A-Za-z0-9_-]+-*")
 	return r.ReplaceAllString(buf.String(), "-"), nil
+}
+
+// LoadReader populates an entry with content from a Reader.
+func (e Entry) LoadReader(r io.Reader) error {
+	tree, err := toml.LoadReader(r)
+	if err != nil {
+		return err
+	}
+	e.Tree = tree
+	return nil
 }

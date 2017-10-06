@@ -1,11 +1,11 @@
 package notebook
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"testing"
 
-	toml "github.com/pelletier/go-toml"
 	"github.com/taylorskalyo/stno/notebook"
 )
 
@@ -57,8 +57,7 @@ func TestEntryIDTemplate(t *testing.T) {
 				}
 			}
 			entry, _ := n.NewEntry()
-			tree, _ := toml.Load(tc.entryContent)
-			entry.Tree = tree
+			entry.LoadReader(bytes.NewBufferString(tc.entryContent))
 			entryID, err := entry.ID()
 			if err != nil {
 				t.Fatalf("Unexpected error during EntryID(): %s.", err)
