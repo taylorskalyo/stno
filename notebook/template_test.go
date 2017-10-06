@@ -56,8 +56,10 @@ func TestEntryIDTemplate(t *testing.T) {
 					t.Fatal("Expected error during SetEntryIDTemplate, but none was thrown.")
 				}
 			}
-			entry, _ := toml.Load(tc.entryContent)
-			entryID, err := n.EntryID(entry)
+			entry, _ := n.NewEntry()
+			tree, _ := toml.Load(tc.entryContent)
+			entry.Tree = tree
+			entryID, err := entry.ID()
 			if err != nil {
 				t.Fatalf("Unexpected error during EntryID(): %s.", err)
 			}

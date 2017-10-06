@@ -2,7 +2,6 @@ package notebook
 
 import (
 	"bytes"
-	"regexp"
 	"text/template"
 
 	toml "github.com/pelletier/go-toml"
@@ -19,9 +18,10 @@ type Notebook struct {
 }
 
 // NewEntry generates a new entry based on the notebook's entry template.
-func (n Notebook) NewEntry() (*toml.Tree, error) {
+func (n Notebook) NewEntry() (Entry, error) {
 	var t *template.Template
 	var dataFn entryTemplateDataFn
+	var entry Entry
 	buf := bytes.NewBufferString("")
 
 	// Determine whether to use custom template or default
@@ -37,30 +37,13 @@ func (n Notebook) NewEntry() (*toml.Tree, error) {
 	}
 
 	if err := t.Execute(buf, dataFn()); err != nil {
-		return nil, err
+		return entry, err
 	}
-	return toml.LoadReader(buf)
-}
-
-// EntryID generates an ID for the given entry based on the notebook's entry ID
-// template (see SetEntryIDTemplate). This ID is not necessarily unique between
-// entries, but it will be used to generate a unique identifier.
-func (n Notebook) EntryID(entry *toml.Tree) (string, error) {
-	var t *template.Template
-	buf := bytes.NewBufferString("")
-
-	// Determine whether to use custom template or default
-	if n.entryIDTemplate != nil {
-		t = n.entryIDTemplate
-	} else {
-		t = template.Must(template.New("entryID").Parse(entryIDTemplateStr))
+	tree, err := toml.LoadReader(buf)
+	if err != nil {
+		return entry, err
 	}
-
-	if err := t.Execute(buf, entry.ToMap()); err != nil {
-		return "", err
-	}
-
-	// Replace any non-alphanumeric characters
-	r := regexp.MustCompile("-*[^A-Za-z0-9_-]+-*")
-	return r.ReplaceAllString(buf.String(), "-"), nil
+	entry.notebook = &n
+	entry.Tree = tree
+	return entry, nil
 }
