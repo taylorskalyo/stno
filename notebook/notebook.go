@@ -11,14 +11,15 @@ import (
 )
 
 const entryIDTemplateStr string = `{{.datetime.Format "2006 Jan 2 15:04:05 MST"}}-{{.title}}`
-const entryTemplateStr string = `title    = ""
+const entryTemplateStr string = `title = ""
 datetime = {{.datetime}}
-notes    = """
-"""`
+notes = ""`
 
-// newTemplateData holds values that can be substituted into a template.
-func newEntryTemplateData() map[string]string {
-	return map[string]string{
+type entryTemplateDataFn func() map[string]interface{}
+
+// entryTemplateData holds values that can be substituted into a template.
+func entryTemplateData() map[string]interface{} {
+	return map[string]interface{}{
 		"datetime": time.Now().Format(time.RFC3339),
 	}
 }
@@ -27,13 +28,15 @@ func newEntryTemplateData() map[string]string {
 // methods for manipulating the contents.
 type Notebook struct {
 	datastore.DataStore
-	entryIDTemplate *template.Template
-	entryTemplate   *template.Template
+	entryIDTemplate     *template.Template
+	entryTemplate       *template.Template
+	EntryTemplateDataFn entryTemplateDataFn
 }
 
 // NewEntry generates a new entry based on the notebook's entry template.
 func (n Notebook) NewEntry() (*toml.Tree, error) {
 	var t *template.Template
+	var dataFn entryTemplateDataFn
 	buf := bytes.NewBufferString("")
 
 	// Determine whether to use custom template or default
@@ -42,8 +45,13 @@ func (n Notebook) NewEntry() (*toml.Tree, error) {
 	} else {
 		t = template.Must(template.New("entry").Parse(entryTemplateStr))
 	}
+	if n.EntryTemplateDataFn != nil {
+		dataFn = n.EntryTemplateDataFn
+	} else {
+		dataFn = entryTemplateData
+	}
 
-	if err := t.Execute(buf, newEntryTemplateData()); err != nil {
+	if err := t.Execute(buf, dataFn()); err != nil {
 		return nil, err
 	}
 	return toml.LoadReader(buf)
