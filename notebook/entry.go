@@ -9,12 +9,14 @@ import (
 	toml "github.com/pelletier/go-toml"
 )
 
+// Entry wraps the underlying TOML tree of a stno entry and provides methods
+// for manipulating the contents.
 type Entry struct {
 	*toml.Tree
 	notebook *Notebook
 }
 
-// EntryID generates an ID for the given entry based on the notebook's entry ID
+// ID generates an ID for the given entry based on the notebook's entry ID
 // template (see SetEntryIDTemplate). This ID is not necessarily unique between
 // entries, but it will be used to generate a unique identifier.
 func (e Entry) ID() (string, error) {
@@ -38,7 +40,7 @@ func (e Entry) ID() (string, error) {
 }
 
 // LoadReader populates an entry with content from a Reader.
-func (e Entry) LoadReader(r io.Reader) error {
+func (e *Entry) LoadReader(r io.Reader) error {
 	tree, err := toml.LoadReader(r)
 	if err != nil {
 		return err

@@ -3,28 +3,17 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
-	"time"
 
 	shellquote "github.com/kballard/go-shellquote"
 	homedir "github.com/mitchellh/go-homedir"
-	toml "github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/taylorskalyo/stno/datastore"
+	"github.com/taylorskalyo/stno/notebook"
 )
-
-const defaultTemplate string = `title = ""
-datetime = {{.DateTime}}
-notes = ""`
-
-type templateData struct {
-	DateTime string
-}
 
 func openEditor(path string) error {
 	editor := os.Getenv("EDITOR")
@@ -50,13 +39,6 @@ func openEditor(path string) error {
 	return nil
 }
 
-// newTemplateData holds values that can be substituted into a template.
-func newTemplateData() templateData {
-	return templateData{
-		DateTime: time.Now().Format(time.RFC3339),
-	}
-}
-
 func stnoDir(name string) (string, error) {
 	return homedir.Expand(path.Join("~/.stno", name))
 }
@@ -75,15 +57,28 @@ var addCmd = &cobra.Command{
 		}
 		defer os.Remove(tmpfile.Name())
 
-		// Write template to file
-		t, err := template.New("default").Parse(defaultTemplate)
+		// Create notebook
+		dir, err := stnoDir(notebookName)
 		if err != nil {
-			fmt.Printf("Failed to generate notebook template: %s.\n", err.Error())
+			fmt.Printf("Failed to determine notebook directory: %s.\n", err.Error())
 			os.Exit(1)
 		}
-		err = t.Execute(tmpfile, newTemplateData())
+		ds, err := datastore.CreateFileStore(dir)
+		if err != nil {
+			fmt.Printf("Failed to create notebook data store: %s.\n", err.Error())
+			os.Exit(1)
+		}
+		n := notebook.Notebook{DataStore: ds}
+
+		// Write template to file
+		entry, err := n.NewEntry()
 		if err != nil {
 			fmt.Printf("Failed to apply notebook template: %s.\n", err.Error())
+			os.Exit(1)
+		}
+		_, err = tmpfile.WriteString(entry.String())
+		if err != nil {
+			fmt.Printf("Failed to write to new notebook entry: %s.\n", err.Error())
 			os.Exit(1)
 		}
 		fi, err := tmpfile.Stat()
@@ -122,43 +117,25 @@ var addCmd = &cobra.Command{
 		}
 
 		// Lint file
-		tree, err := toml.LoadReader(rc)
+		err = entry.LoadReader(rc)
 		if err != nil {
 			fmt.Printf("Invalid toml: %s.\n", err.Error())
 			os.Exit(1)
 		}
 		rc.Seek(0, 0)
 
-		// Copy contents from temp file to entry file
-		dir, err := stnoDir(notebook)
+		id, err := entry.ID()
 		if err != nil {
-			fmt.Printf("Failed to determine notebook directory: %s.\n", err.Error())
+			fmt.Printf("Failed to create notebook entry: %s.\n", err.Error())
 			os.Exit(1)
 		}
-		ds, err := datastore.CreateFileStore(dir)
-		if err != nil {
-			fmt.Printf("Failed to create notebook data store: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		var buf bytes.Buffer
-		datetime, ok := tree.Get("datetime").(time.Time)
-		if ok {
-			buf.WriteString(fmt.Sprintf("%d", datetime.Unix()))
-			buf.WriteString("-")
-		}
-		title, ok := tree.Get("title").(string)
-		if ok {
-			r := regexp.MustCompile("[^A-Za-z0-9_-]+")
-			buf.WriteString(r.ReplaceAllString(title, "-"))
-			buf.WriteString("-")
-		}
-		_, wc, err := ds.NewUniqueWriteCloser(buf.String())
+		_, wc, err := n.NewUniqueWriteCloser(id)
 		if err != nil {
 			fmt.Printf("Failed to create notebook entry: %s.\n", err.Error())
 			os.Exit(1)
 		}
 		defer wc.Close()
-		_, err = io.Copy(wc, rc)
+		_, err = io.Copy(wc, bytes.NewBufferString(entry.String()))
 		if err != nil {
 			fmt.Printf("Failed to save notebook entry: %s.\n", err.Error())
 			os.Exit(1)

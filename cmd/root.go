@@ -10,7 +10,7 @@ import (
 )
 
 var cfgFile string
-var notebook string
+var notebookName string
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -40,7 +40,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default \"$HOME/.stno.yaml\")")
-	RootCmd.PersistentFlags().StringVarP(&notebook, "notebook", "n", "default", "notebook name")
+	RootCmd.PersistentFlags().StringVarP(&notebookName, "notebook", "n", "default", "notebook name")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

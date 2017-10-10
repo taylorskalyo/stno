@@ -15,7 +15,7 @@ var queryCmd = &cobra.Command{
 	Short: "Query entries and display the results",
 	Long:  `By default query lists all entries.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		dir, err := stnoDir(notebook)
+		dir, err := stnoDir(notebookName)
 		if err != nil {
 			fmt.Printf("Failed to determine notebook directory: %s.", err.Error())
 			os.Exit(1)
