@@ -14,6 +14,7 @@ import (
 type Entry struct {
 	*toml.Tree
 	notebook *Notebook
+	uid      string
 }
 
 // ID generates an ID for the given entry based on the notebook's entry ID
@@ -47,4 +48,32 @@ func (e *Entry) LoadReader(r io.Reader) error {
 	}
 	e.Tree = tree
 	return nil
+}
+
+// Save persists an entry to the notebook's underlying data store.
+func (e *Entry) Save() error {
+	var wc io.WriteCloser
+	var err error
+
+	id, err := e.ID()
+	if err != nil {
+		return err
+	}
+	if e.uid == "" {
+		var uid string
+		uid, wc, err = e.notebook.NewUniqueWriteCloser(id)
+		if err != nil {
+			return err
+		}
+		defer wc.Close()
+		e.uid = uid
+	} else {
+		wc, err = e.notebook.NewWriteCloser(e.uid)
+		if err != nil {
+			return err
+		}
+		defer wc.Close()
+	}
+	_, err = io.WriteString(wc, e.String())
+	return err
 }

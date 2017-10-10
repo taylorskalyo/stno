@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -124,19 +122,7 @@ var addCmd = &cobra.Command{
 		}
 		rc.Seek(0, 0)
 
-		id, err := entry.ID()
-		if err != nil {
-			fmt.Printf("Failed to create notebook entry: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		_, wc, err := n.NewUniqueWriteCloser(id)
-		if err != nil {
-			fmt.Printf("Failed to create notebook entry: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		defer wc.Close()
-		_, err = io.Copy(wc, bytes.NewBufferString(entry.String()))
-		if err != nil {
+		if err = entry.Save(); err != nil {
 			fmt.Printf("Failed to save notebook entry: %s.\n", err.Error())
 			os.Exit(1)
 		}
