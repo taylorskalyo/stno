@@ -12,13 +12,13 @@ Use path as UID instead of datetime + title + sequence
 Add bash completion for paths (like password-store)
 
 Datastore changes:
-- No need to initialize a datastore with a path
 - No need to create a new unique entry ID
 - New interface is:
   - List(string) ([]string, error)
   - NewWriteCloser(string) (io.WriteCloser, error)
   - NewReadCloser(string) (io.ReadCloser, error)
   - Remove(string) error
+  - Move(string, string) error
 
 Add
 - Touch file at path
