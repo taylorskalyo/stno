@@ -1,15 +1,13 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"os/exec"
-	"path"
-	"regexp"
-	"time"
+	"strings"
 
 	shellquote "github.com/kballard/go-shellquote"
 	homedir "github.com/mitchellh/go-homedir"
@@ -18,12 +16,109 @@ import (
 	"github.com/taylorskalyo/stno/datastore"
 )
 
-const defaultTemplate string = `title = ""
-datetime = {{.DateTime}}
-notes = ""`
+const stnoDir string = "~/.stno"
 
-type templateData struct {
-	DateTime string
+// addCmd adds a new entry to the notebook.
+var addCmd = &cobra.Command{
+	Use:   "add",
+	Short: "Add a stno entry",
+	Long:  `New entries will be opened in your default editor.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Create entry
+		dir, err := homedir.Expand(stnoDir)
+		if err != nil {
+			fmt.Printf("Could not expand path %s: %s.\n", stnoDir, err.Error())
+			os.Exit(1)
+		}
+		n := datastore.FileStore{Dir: dir}
+		entry, err := n.NewEntryWriteCloser("entry")
+		if err != nil {
+			fmt.Printf("Failed to create entry %s: %s.\n", "entry", err.Error())
+			os.Exit(1)
+		}
+
+		contents := ""
+		for {
+			contents, err = editString(contents)
+			if _, err = toml.Load(contents); err != nil {
+				fmt.Printf("Could not parse TOML: %s. Try again? ", err.Error())
+				if !confirm() {
+					break
+				}
+			} else {
+				break
+			}
+		}
+
+		if _, err = io.WriteString(entry, contents); err != nil {
+			fmt.Printf("Failed to save notebook entry: %s.\n", err.Error())
+			os.Exit(1)
+		}
+	},
+}
+
+func init() {
+	RootCmd.AddCommand(addCmd)
+
+	// Here you will define your flags and configuration settings.
+
+	// Cobra supports Persistent Flags which will work for this command
+	// and all subcommands, e.g.:
+	// addCmd.PersistentFlags().String("foo", "", "A help for foo")
+
+	// Cobra supports local flags which will only run when this command
+	// is called directly, e.g.:
+	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func editString(str string) (string, error) {
+	// Create temporary file
+	tmpfile, err := datastore.TempFile("", "stno", ".toml")
+	if err != nil {
+		return str, err
+	}
+	defer os.Remove(tmpfile.Name())
+	if _, err = io.WriteString(tmpfile, str); err != nil {
+		return str, err
+	}
+
+	fi, err := tmpfile.Stat()
+	if err != nil {
+		return str, err
+	}
+	oldModTime := fi.ModTime()
+	if err := tmpfile.Close(); err != nil {
+		return str, err
+	}
+	tmpfile.Close()
+
+	// Open file in editor
+	if err = openEditor(tmpfile.Name()); err != nil {
+		return str, err
+	}
+
+	rc, err := os.Open(tmpfile.Name())
+	if err != nil {
+		return str, err
+	}
+	defer rc.Close()
+
+	// Return original string if there were no changes
+	fi, err = rc.Stat()
+	if err != nil {
+		return str, err
+	}
+	if oldModTime == fi.ModTime() {
+		fmt.Println("Aborting due to no changes.")
+		os.Exit(1)
+	}
+
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(rc)
+	if err != nil {
+		return str, err
+	}
+	return buf.String(), nil
 }
 
 func openEditor(path string) error {
@@ -50,132 +145,19 @@ func openEditor(path string) error {
 	return nil
 }
 
-// newTemplateData holds values that can be substituted into a template.
-func newTemplateData() templateData {
-	return templateData{
-		DateTime: time.Now().Format(time.RFC3339),
+func confirm() bool {
+	fmt.Printf("(y/N): ")
+	r := bufio.NewReader(os.Stdin)
+	s, err := r.ReadString('\n')
+	if err != nil {
+		panic(err)
 	}
-}
 
-func stnoDir(name string) (string, error) {
-	return homedir.Expand(path.Join("~/.stno", name))
-}
+	s = strings.TrimSpace(s)
+	s = strings.ToLower(s)
 
-// addCmd adds a new entry to the notebook.
-var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Add a stno entry",
-	Long:  `New entries will be opened in your default editor.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Create temporary file
-		tmpfile, err := datastore.TempFile("", "stno", ".toml")
-		if err != nil {
-			fmt.Printf("Failed to create temporary file: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		defer os.Remove(tmpfile.Name())
-
-		// Write template to file
-		t, err := template.New("default").Parse(defaultTemplate)
-		if err != nil {
-			fmt.Printf("Failed to generate notebook template: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		err = t.Execute(tmpfile, newTemplateData())
-		if err != nil {
-			fmt.Printf("Failed to apply notebook template: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		fi, err := tmpfile.Stat()
-		if err != nil {
-			fmt.Printf("Failed to stat temporary file %s: %s.\n", tmpfile.Name(), err.Error())
-			os.Exit(1)
-		}
-		oldModTime := fi.ModTime()
-		if err := tmpfile.Close(); err != nil {
-			fmt.Printf("Failed to close temporary file %s: %s.\n", tmpfile.Name(), err.Error())
-			os.Exit(1)
-		}
-
-		// Open file in editor
-		if err = openEditor(tmpfile.Name()); err != nil {
-			fmt.Printf("Failed to open editor: %s.\n", err.Error())
-			os.Exit(1)
-		}
-
-		rc, err := os.Open(tmpfile.Name())
-		if err != nil {
-			fmt.Printf("Failed to open temporary file %s: %s.\n", tmpfile.Name(), err.Error())
-			os.Exit(1)
-		}
-		defer rc.Close()
-
-		// Return if there were no changes
-		fi, err = rc.Stat()
-		if err != nil {
-			fmt.Printf("Failed to stat temporary file %s: %s.\n", tmpfile.Name(), err.Error())
-			os.Exit(1)
-		}
-		if oldModTime == fi.ModTime() {
-			fmt.Println("Aborting due to empty entry.")
-			os.Exit(1)
-		}
-
-		// Lint file
-		tree, err := toml.LoadReader(rc)
-		if err != nil {
-			fmt.Printf("Invalid toml: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		rc.Seek(0, 0)
-
-		// Copy contents from temp file to entry file
-		dir, err := stnoDir(notebook)
-		if err != nil {
-			fmt.Printf("Failed to determine notebook directory: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		ds, err := datastore.CreateFileStore(dir)
-		if err != nil {
-			fmt.Printf("Failed to create notebook data store: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		var buf bytes.Buffer
-		datetime, ok := tree.Get("datetime").(time.Time)
-		if ok {
-			buf.WriteString(fmt.Sprintf("%d", datetime.Unix()))
-			buf.WriteString("-")
-		}
-		title, ok := tree.Get("title").(string)
-		if ok {
-			r := regexp.MustCompile("[^A-Za-z0-9_-]+")
-			buf.WriteString(r.ReplaceAllString(title, "-"))
-			buf.WriteString("-")
-		}
-		_, wc, err := ds.NewUniqueWriteCloser(buf.String())
-		if err != nil {
-			fmt.Printf("Failed to create notebook entry: %s.\n", err.Error())
-			os.Exit(1)
-		}
-		defer wc.Close()
-		_, err = io.Copy(wc, rc)
-		if err != nil {
-			fmt.Printf("Failed to save notebook entry: %s.\n", err.Error())
-			os.Exit(1)
-		}
-	},
-}
-
-func init() {
-	RootCmd.AddCommand(addCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// addCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	if s == "y" || s == "yes" {
+		return true
+	}
+	return false
 }

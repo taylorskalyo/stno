@@ -25,27 +25,27 @@ func (fs FileStore) ListEntries(prefix string) ([]string, error) {
 		return uids, err
 	}
 
-	for pathname := range matches {
+	for _, pathname := range matches {
 		fi, err := os.Stat(pathname)
 		if err != nil {
 			return uids, err
 		}
 		if fi.IsDir() {
-			subUIDS, err := listDir(pathname)
+			subUIDS, err := fs.listDir(pathname)
 			if err != nil {
 				return uids, err
 			}
-			uids = append(uids, subUIDS)
+			uids = append(uids, subUIDS...)
 		} else {
 			ext := filepath.Ext(pathname)
-			uid := pathname[0 : len(pathname)-len(ext)]
-			uids = append(uids, pathname)
+			uid := pathname[len(fs.Dir) : len(pathname)-len(ext)]
+			uids = append(uids, uid)
 		}
 	}
 	return uids, nil
 }
 
-func listDir(dir string) ([]string, error) {
+func (fs FileStore) listDir(dir string) ([]string, error) {
 	var uids []string
 
 	err := filepath.Walk(dir, func(pathname string, fi os.FileInfo, err error) error {
@@ -57,7 +57,7 @@ func listDir(dir string) ([]string, error) {
 			if strings.ToLower(ext) != ".toml" {
 				return nil
 			}
-			uid := pathname[0 : len(pathname)-len(ext)]
+			uid := pathname[len(fs.Dir) : len(pathname)-len(ext)]
 			uids = append(uids, uid)
 		}
 		return nil
@@ -76,6 +76,9 @@ func (fs FileStore) NewEntryWriteCloser(uid string) (io.WriteCloser, error) {
 // io.ReadCloser.
 func (fs FileStore) NewEntryReadCloser(uid string) (io.ReadCloser, error) {
 	pathname := path.Join(fs.Dir, uid+".toml")
+	if err := os.MkdirAll(filepath.Dir(pathname), 0755); err != nil {
+		return nil, err
+	}
 	return os.Open(pathname)
 }
 
