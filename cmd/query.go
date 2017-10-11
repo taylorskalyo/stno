@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	homedir "github.com/mitchellh/go-homedir"
 	toml "github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/taylorskalyo/stno/datastore"
@@ -15,36 +16,32 @@ var queryCmd = &cobra.Command{
 	Short: "Query entries and display the results",
 	Long:  `By default query lists all entries.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		dir, err := stnoDir(notebookName)
+		dir, err := homedir.Expand(stnoDir)
 		if err != nil {
-			fmt.Printf("Failed to determine notebook directory: %s.", err.Error())
+			fmt.Printf("Could not expand path %s: %s.\n", stnoDir, err.Error())
 			os.Exit(1)
 		}
-		ds, err := datastore.CreateFileStore(dir)
-		if err != nil {
-			fmt.Printf("Failed to create notebook data store: %s.", err.Error())
-			os.Exit(1)
-		}
+		n := datastore.FileStore{Dir: dir}
 
-		uuids, err := ds.List()
+		uids, err := n.ListEntries("")
 		if err != nil {
-			fmt.Printf("Failed to list notebook entries: %s.", err.Error())
+			fmt.Printf("Failed to list notebook entries: %s.\n", err.Error())
 			os.Exit(1)
 		}
 		tree, _ := toml.Load("")
-		for _, uuid := range uuids {
-			rc, err := ds.NewReadCloser(uuid)
+		for _, uid := range uids {
+			rc, err := n.NewEntryReadCloser(uid)
 			if err != nil {
-				fmt.Printf("Failed to read notebook entry %s: %s.", uuid, err.Error())
+				fmt.Printf("Failed to read notebook entry %s: %s.\n", uid, err.Error())
 				os.Exit(1)
 			}
 			defer rc.Close()
 			t, err := toml.LoadReader(rc)
 			if err != nil {
-				fmt.Printf("Invalid toml in entry %s: %s.", uuid, err.Error())
+				fmt.Printf("Invalid toml in entry %s: %s.\n", uid, err.Error())
 				continue
 			}
-			tree.Set(uuid, "", false, t)
+			tree.Set(uid, "", false, t)
 		}
 		fmt.Println(tree.String())
 	},
