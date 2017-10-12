@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path"
 
 	homedir "github.com/mitchellh/go-homedir"
 	toml "github.com/pelletier/go-toml"
@@ -12,14 +14,26 @@ import (
 
 // queryCmd queries a notebook for a list of entries.
 var queryCmd = &cobra.Command{
-	Use:   "query",
+	Use:   "query [path]",
 	Short: "Query entries and display the results",
-	Long:  `By default query lists all entries.`,
+	Long: `Query entries and display the results
+
+This command takes a path. This path is relative to the stno directory
+(defaults to ~/.stno). By default query lists all entries.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 1 {
+			return errors.New("query accepts at most one path")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		dir, err := homedir.Expand(stnoDir)
 		if err != nil {
 			fmt.Printf("Could not expand path %s: %s.\n", stnoDir, err.Error())
 			os.Exit(1)
+		}
+		if len(args) > 0 {
+			dir = path.Join(dir, args[0])
 		}
 		n := datastore.FileStore{Dir: dir}
 

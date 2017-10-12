@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,9 +14,20 @@ import (
 
 // addCmd adds a new entry to the notebook.
 var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Add a stno entry",
-	Long:  `New entries will be opened in your default editor.`,
+	Use:   "add path",
+	Short: "Add an entry to your stno notebook",
+	Long: `Add an entry to your stno notebook
+
+New entries will be opened in your default editor (specified by the EDITOR
+environment variable). If the entry is not valid TOML, you will be prompted to
+revise the entry. This command takes a path. This path is relative to the stno
+directory (defaults to ~/.stno). `,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return errors.New("add requires a path")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create entry
 		dir, err := homedir.Expand(stnoDir)
@@ -24,9 +36,9 @@ var addCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		n := datastore.FileStore{Dir: dir}
-		entry, err := n.NewEntryWriteCloser("entry")
+		entry, err := n.NewEntryWriteCloser(args[0])
 		if err != nil {
-			fmt.Printf("Failed to create entry %s: %s.\n", "entry", err.Error())
+			fmt.Printf("Failed to create entry %s: %s.\n", args[0], err.Error())
 			os.Exit(1)
 		}
 

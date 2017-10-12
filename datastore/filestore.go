@@ -69,6 +69,9 @@ func (fs FileStore) listDir(dir string) ([]string, error) {
 // an io.WriteCloser.
 func (fs FileStore) NewEntryWriteCloser(uid string) (io.WriteCloser, error) {
 	pathname := path.Join(fs.Dir, uid+".toml")
+	if err := os.MkdirAll(filepath.Dir(pathname), 0755); err != nil {
+		return nil, err
+	}
 	return os.Create(pathname)
 }
 
@@ -76,9 +79,6 @@ func (fs FileStore) NewEntryWriteCloser(uid string) (io.WriteCloser, error) {
 // io.ReadCloser.
 func (fs FileStore) NewEntryReadCloser(uid string) (io.ReadCloser, error) {
 	pathname := path.Join(fs.Dir, uid+".toml")
-	if err := os.MkdirAll(filepath.Dir(pathname), 0755); err != nil {
-		return nil, err
-	}
 	return os.Open(pathname)
 }
 
