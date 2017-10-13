@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 
@@ -10,6 +11,7 @@ import (
 	toml "github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/taylorskalyo/stno/datastore"
+	"github.com/taylorskalyo/stno/formatter"
 )
 
 var queryCmd = &cobra.Command{
@@ -37,14 +39,15 @@ This command takes a path. This path is relative to the stno directory
 		}
 		ds := datastore.FileStore{Dir: dir}
 
-		// Combine entries into a single TOML tree and display
+		// Create UID -> Tree entry mappings
 		uids, err := ds.ListEntries("")
 		if err != nil {
 			fmt.Printf("Failed to list notebook entries: %s.\n", err.Error())
 			os.Exit(1)
 		}
-		tree, _ := toml.Load("")
+		var entries []*toml.Tree
 		for _, uid := range uids {
+			entry, _ := toml.Load("")
 			rc, err := ds.NewEntryReadCloser(uid)
 			if err != nil {
 				fmt.Printf("Failed to read notebook entry %s: %s.\n", uid, err.Error())
@@ -56,9 +59,18 @@ This command takes a path. This path is relative to the stno directory
 				fmt.Printf("Invalid toml in entry %s: %s.\n", uid, err.Error())
 				continue
 			}
-			tree.Set(uid, "", false, t)
+			entry.Set(uid, "", false, t)
+			entries = append(entries, entry)
 		}
-		fmt.Println(tree.String())
+
+		// Format entries and write to stdout
+		tf := formatter.TOMLFormatter{entries}
+		r, err := tf.Format()
+		if err != nil {
+			fmt.Printf("Failed to format entries: %s.\n", err.Error())
+			os.Exit(1)
+		}
+		io.Copy(os.Stdout, r)
 	},
 }
 
