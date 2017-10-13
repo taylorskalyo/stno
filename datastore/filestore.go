@@ -6,71 +6,94 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
-// FileStore implements DataStore using files and directories.
+// FileStore implements DataStore using files and directories. Notebooks and
+// sections within a notebook are represented by directories. Entries are
+// represented by files.
 type FileStore struct {
-	Path string
+	Dir string
 }
 
-// CreateFileStore creates or opens a FileStore at the specified dir.
-func CreateFileStore(dir string) (FileStore, error) {
-	var fs FileStore
+// ListEntries returns the UIDs of each entry in the FileStore.
+func (fs FileStore) ListEntries(prefix string) ([]string, error) {
+	var uids []string
 
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return fs, err
+	matches, err := filepath.Glob(path.Join(fs.Dir, prefix+"*"))
+	if err != nil {
+		return uids, err
 	}
-	fs.Path = dir
 
-	return fs, nil
+	for _, pathname := range matches {
+		fi, err := os.Stat(pathname)
+		if err != nil {
+			return uids, err
+		}
+		if fi.IsDir() {
+			subUIDS, err := fs.listDir(pathname)
+			if err != nil {
+				return uids, err
+			}
+			uids = append(uids, subUIDS...)
+		} else {
+			ext := filepath.Ext(pathname)
+			uid := pathname[len(fs.Dir) : len(pathname)-len(ext)]
+			uids = append(uids, uid)
+		}
+	}
+	return uids, nil
 }
 
-// List UUIDs of entries in the FileStore.
-func (fs FileStore) List() ([]string, error) {
-	var uuids []string
+func (fs FileStore) listDir(dir string) ([]string, error) {
+	var uids []string
 
-	err := filepath.Walk(fs.Path, func(pathname string, fi os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(pathname string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !fi.IsDir() {
-			base := path.Base(pathname)
-			ext := path.Ext(pathname)
-			if ext != ".toml" {
+			ext := filepath.Ext(pathname)
+			if strings.ToLower(ext) != ".toml" {
 				return nil
 			}
-			uuid := base[0 : len(base)-len(ext)]
-			uuids = append(uuids, uuid)
+			uid := pathname[len(fs.Dir) : len(pathname)-len(ext)]
+			uids = append(uids, uid)
 		}
 		return nil
 	})
-
-	return uuids, err
+	return uids, err
 }
 
-// NewUniqueWriteCloser generates a new uuid with an optional prefix and uses it to
-// create an io.WriteCloser.
-func (fs FileStore) NewUniqueWriteCloser(prefix string) (string, io.WriteCloser, error) {
-	f, err := TempFile(fs.Path, prefix, ".toml")
-	if err != nil {
-		return "", f, err
-	}
-
-	return path.Join(fs.Path, f.Name()), f, nil
-}
-
-// NewWriteCloser opens or creates the file with the specified uuid and returns
+// NewEntryWriteCloser opens or creates an entry's underlying file and returns
 // an io.WriteCloser.
-func (fs FileStore) NewWriteCloser(uuid string) (io.WriteCloser, error) {
-	pathname := path.Join(fs.Path, uuid+".toml")
+func (fs FileStore) NewEntryWriteCloser(uid string) (io.WriteCloser, error) {
+	pathname := path.Join(fs.Dir, uid+".toml")
+	if err := os.MkdirAll(filepath.Dir(pathname), 0755); err != nil {
+		return nil, err
+	}
 	return os.Create(pathname)
 }
 
-// NewReadCloser opens the file with the specified uuid and returns an
+// NewEntryReadCloser opens an entry's underlying file and returns an
 // io.ReadCloser.
-func (fs FileStore) NewReadCloser(uuid string) (io.ReadCloser, error) {
-	pathname := path.Join(fs.Path, uuid+".toml")
+func (fs FileStore) NewEntryReadCloser(uid string) (io.ReadCloser, error) {
+	pathname := path.Join(fs.Dir, uid+".toml")
 	return os.Open(pathname)
+}
+
+// Rename renames (moves) an entry's underlying file from srcUID to destUID
+// within the FileStore.
+func (fs FileStore) Rename(srcUID, destUID string) error {
+	srcPath := path.Join(fs.Dir, srcUID+".toml")
+	destPath := path.Join(fs.Dir, destUID+".toml")
+	return os.Rename(srcPath, destPath)
+}
+
+// Remove removes an entry's underlying file from the FileStore.
+func (fs FileStore) Remove(uid string) error {
+	pathname := path.Join(fs.Dir, uid+".toml")
+	return os.Remove(pathname)
 }
 
 // TempFile creates a new temporary file in the directory dir with a name

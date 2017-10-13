@@ -1,50 +1,62 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path"
 
+	homedir "github.com/mitchellh/go-homedir"
 	toml "github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/taylorskalyo/stno/datastore"
 )
 
-// queryCmd queries a notebook for a list of entries.
 var queryCmd = &cobra.Command{
-	Use:   "query",
+	Use:   "query [path]",
 	Short: "Query entries and display the results",
-	Long:  `By default query lists all entries.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		dir, err := stnoDir(notebook)
-		if err != nil {
-			fmt.Printf("Failed to determine notebook directory: %s.", err.Error())
-			os.Exit(1)
-		}
-		ds, err := datastore.CreateFileStore(dir)
-		if err != nil {
-			fmt.Printf("Failed to create notebook data store: %s.", err.Error())
-			os.Exit(1)
-		}
+	Long: `Query entries and display the results
 
-		uuids, err := ds.List()
+This command takes a path. This path is relative to the stno directory
+(defaults to ~/.stno). By default query lists all entries.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 1 {
+			return errors.New("query accepts at most one path")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		// Open notebook at the given path
+		dir, err := homedir.Expand(stnoDir)
 		if err != nil {
-			fmt.Printf("Failed to list notebook entries: %s.", err.Error())
+			fmt.Printf("Could not expand path %s: %s.\n", stnoDir, err.Error())
+			os.Exit(1)
+		}
+		if len(args) > 0 {
+			dir = path.Join(dir, args[0])
+		}
+		ds := datastore.FileStore{Dir: dir}
+
+		// Combine entries into a single TOML tree and display
+		uids, err := ds.ListEntries("")
+		if err != nil {
+			fmt.Printf("Failed to list notebook entries: %s.\n", err.Error())
 			os.Exit(1)
 		}
 		tree, _ := toml.Load("")
-		for _, uuid := range uuids {
-			rc, err := ds.NewReadCloser(uuid)
+		for _, uid := range uids {
+			rc, err := ds.NewEntryReadCloser(uid)
 			if err != nil {
-				fmt.Printf("Failed to read notebook entry %s: %s.", uuid, err.Error())
+				fmt.Printf("Failed to read notebook entry %s: %s.\n", uid, err.Error())
 				os.Exit(1)
 			}
 			defer rc.Close()
 			t, err := toml.LoadReader(rc)
 			if err != nil {
-				fmt.Printf("Invalid toml in entry %s: %s.", uuid, err.Error())
+				fmt.Printf("Invalid toml in entry %s: %s.\n", uid, err.Error())
 				continue
 			}
-			tree.Set(uuid, "", false, t)
+			tree.Set(uid, "", false, t)
 		}
 		fmt.Println(tree.String())
 	},
